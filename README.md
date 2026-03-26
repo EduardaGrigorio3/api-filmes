@@ -42,12 +42,6 @@ Acesse no navegador ou no Postman:
 http://localhost:8080/api/filmes
 ```
 
-## Rotas disponíveis
-
-### GET /api/filmes
-
-Retorna a lista de filmes cadastrados.
-
 ## Workflow utilizado
 
 Foi utilizado o **GitHub Flow**.
