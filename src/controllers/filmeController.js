@@ -7,11 +7,20 @@ exports.listarFilmes = (req, res) => {
 
 // POST
 exports.adicionarFilme = (req, res) => {
-  const { nome } = req.body;
+  const { nome, ano, descricao } = req.body;
+
+  // valida se prrencheu todos os campos
+  if (!nome || !ano || !descricao) {
+    return res.status(400).json({
+      erro: "Preencha nome, ano e descrição"
+    });
+  }
 
   const novoFilme = {
     id: filmes.length + 1,
-    nome
+    nome,
+    ano,
+    descricao
   };
 
   filmes.push(novoFilme);
