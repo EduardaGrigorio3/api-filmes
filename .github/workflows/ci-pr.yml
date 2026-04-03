@@ -1,0 +1,30 @@
+name: ci-pull-request
+run-name: ${{github.actor}} abriu um pull request
+
+on: [pull_request]
+
+jobs:
+  executar-projeto:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixando o código e acessando a branch do PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Configurando ambiente Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalando pacotes do projeto
+        run: npm install
+
+      - name: Inicializando a aplicação para teste
+        run: |
+          node server.js &            
+          SERVER_PID=$!              
+          echo "Servidor rodando por 10 segundos..."
+          sleep 10                   
+          kill $SERVER_PID
