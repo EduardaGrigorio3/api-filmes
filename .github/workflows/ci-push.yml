@@ -1,29 +1,30 @@
-name: CI - Push
+name: ci-commit-workflow
+run-name: ${{github.actor}} realizou um commit 
 
-on:
-  push:
-    branches:
-      - main
-      - feature/*
+on: [push]
 
-jobs:
-  build:
+jobs: 
+  executar-projeto:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Clonar repositório
-        uses: actions/checkout@v3
-
-      - name: Trocar para branch
-        run: git checkout ${{ github.ref_name }}
-
-      - name: Instalar Node.js
-        uses: actions/setup-node@v3
+      - name: Baixando o código e acessando a branch do PR
+        uses: actions/checkout@v4
         with:
-          node-version: '18'
+          ref: main
 
-      - name: Instalar dependências
+      - name: Configurando ambiente Node.js
+        uses: actions/setup-node@v4
+        with: 
+          node-version: 22
+
+      - name: Instalando pacotes do projeto
         run: npm install
-
-      - name: Executar projeto
-        run: node server.js
+        
+      - name: Inicializando a aplicação para teste
+        run: |
+          node server.js &            
+          SERVER_PID=$!              
+          echo "Servidor rodando por 10 segundos..."
+          sleep 10                   
+          kill $SERVER_PID
