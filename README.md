@@ -1,5 +1,10 @@
 # API de Filmes
 
+![Docker Pulls](https://img.shields.io/docker/pulls/eduardagrigorio3/api-filmes)
+![Docker Image Size](https://img.shields.io/docker/image-size/eduardagrigorio3/api-filmes/latest)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/EduardaGrigorio3/api-filmes/docker.yml)
+
+
 ## Como executar o projeto
 
 1. Instale as dependências:
