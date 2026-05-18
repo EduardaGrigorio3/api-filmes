@@ -1,0 +1,23 @@
+name: lint-workflow
+run-name: ${{ github.actor }} executando lint
+
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixando código
+        uses: actions/checkout@v4
+
+      - name: Configurando Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalando dependências
+        run: npm install
+
+      - name: Verificando estilo
+        run: npx eslint .

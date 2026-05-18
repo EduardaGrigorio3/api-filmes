@@ -27,3 +27,22 @@ exports.adicionarFilme = (req, res) => {
 
   res.status(201).json(novoFilme);
 };
+
+// DELETE
+exports.removerFilme = (req, res) => {
+  const id = parseInt(req.params.id);
+
+  const index = filmes.findIndex(filme => filme.id === id);
+
+  // se não existir
+  if (index === -1) {
+    return res.status(404).json({
+      erro: "Filme não encontrado"
+    });
+  }
+
+  // remove
+  filmes.splice(index, 1);
+
+  return res.status(204).send();
+};
