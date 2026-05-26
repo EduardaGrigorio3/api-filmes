@@ -131,3 +131,97 @@ docker run -p 8080:8080 eduardagrigorio3/api-filmes
 ```bash
 http://localhost:8080/api/filmes
 ```
+
+---
+
+## Infraestrutura com Vagrant
+
+O projeto inclui um `Vagrantfile` que provisiona duas máquinas virtuais usando o **VirtualBox** como provedor.
+
+### Arquitetura
+
+| Máquina | Memória | IP Privado (Classe C) | Função |
+|---------|---------|----------------------|--------|
+| **VM1** | 1024 MB | `192.168.56.10` | Cliente de testes (curl instalado) |
+| **VM2** | 1024 MB | `192.168.56.11` | Executa o backend Node.js na porta 8080 |
+
+- A pasta do projeto é sincronizada com `/vagrant_data` dentro da **VM2**.
+- A **VM2** instala automaticamente o **Node.js 22.x**, executa `npm install` e inicia a aplicação.
+
+### Pré-requisitos
+
+1. Instalar o [Vagrant](https://developer.hashicorp.com/vagrant/downloads)
+2. Instalar o [VirtualBox](https://www.virtualbox.org/wiki/Downloads)
+
+### Passo a passo para executar a infraestrutura
+
+1. Acesse a pasta do projeto:
+
+```bash
+cd api-filmes
+```
+
+2. Inicie as duas VMs:
+
+```bash
+vagrant up
+```
+
+> O Vagrant irá baixar a box `generic/ubuntu2204` (se ainda não existir), criar as VMs no VirtualBox e executar o provisionamento automaticamente.
+
+3. Verifique o status das VMs:
+
+```bash
+vagrant status
+```
+
+A saída esperada é:
+
+```
+vm1                       running (virtualbox)
+vm2                       running (virtualbox)
+```
+
+### Como testar a rota GET dentro da VM1
+
+1. Acesse a **VM1** via SSH:
+
+```bash
+vagrant ssh vm1
+```
+
+2. Dentro da VM1, faça uma requisição GET para a API que está rodando na VM2:
+
+```bash
+curl http://192.168.56.11:8080/api/filmes
+```
+
+3. A resposta esperada é a lista de filmes em formato JSON:
+
+```json
+[
+  {"id":1,"nome":"Perna Longa (Bugs Bunny)","ano":1940,"descricao":"..."},
+  {"id":2,"nome":"Popeye","ano":1929,"descricao":"..."},
+  {"id":3,"nome":"Tom e Jerry","ano":1940,"descricao":"..."}
+]
+```
+
+> A API armazena os dados em memória. Você pode adicionar filmes usando POST e depois consultar novamente com GET.
+
+4. Para sair da VM1:
+
+```bash
+exit
+```
+
+### Comandos úteis do Vagrant
+
+| Comando | Descrição |
+|---------|-----------|
+| `vagrant up` | Inicia e provisiona todas as VMs |
+| `vagrant halt` | Desliga todas as VMs |
+| `vagrant destroy` | Remove todas as VMs |
+| `vagrant ssh vm1` | Acessa a VM1 via SSH |
+| `vagrant ssh vm2` | Acessa a VM2 via SSH |
+| `vagrant status` | Verifica o status das VMs |
+| `vagrant provision` | Executa o provisionamento novamente |
