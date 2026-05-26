@@ -36,3 +36,7 @@ coverage/
 # Sistema operacional
 
 *.swp
+
+# Vagrant
+
+.vagrant/
