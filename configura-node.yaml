@@ -1,0 +1,130 @@
+---
+- name: Configurar VM2 com a aplicação API de Filmes
+  hosts: webservers
+  become: true
+
+  tasks:
+    - name: Corrigir resolução de DNS
+      shell: |
+        echo "nameserver 8.8.8.8" > /etc/resolv.conf
+        echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+      changed_when: false
+
+    - name: Atualizar cache do apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar dependências do sistema
+      apt:
+        name:
+          - git
+          - curl
+          - ca-certificates
+          - gnupg
+        state: present
+
+    - name: Adicionar chave GPG do NodeSource
+      shell: |
+        curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
+      args:
+        creates: /usr/share/keyrings/nodesource.gpg
+
+    - name: Adicionar repositório do Node.js 22.x
+      shell: |
+        echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list
+
+    - name: Atualizar cache do apt após adicionar repositório
+      apt:
+        update_cache: yes
+
+    - name: Instalar Node.js
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Verificar versão do Node.js
+      command: node --version
+      register: node_version
+      changed_when: false
+
+    - name: Exibir versão do Node.js
+      debug:
+        msg: "Node.js versão: {{ node_version.stdout }}"
+
+    - name: Criar diretório da aplicação
+      file:
+        path: /opt/api-filmes
+        state: directory
+        owner: vagrant
+        group: vagrant
+        mode: '0755'
+
+    - name: Clonar repositório da aplicação
+      git:
+        repo: https://github.com/EduardaGrigorio3/api-filmes.git
+        dest: /opt/api-filmes
+        version: main
+        force: yes
+      become_user: vagrant
+
+    - name: Instalar dependências do Node.js
+      community.general.npm:
+        path: /opt/api-filmes
+        state: present
+      become_user: vagrant
+
+    - name: Copiar arquivo de serviço systemd
+      copy:
+        dest: /etc/systemd/system/api-filmes.service
+        content: |
+          [Unit]
+          Description=API de Filmes - Node.js
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=vagrant
+          WorkingDirectory=/opt/api-filmes
+          ExecStart=/usr/bin/node server.js
+          Restart=on-failure
+          RestartSec=10
+          Environment=NODE_ENV=production
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+      notify: Reiniciar API de Filmes
+
+    - name: Habilitar e iniciar serviço da API
+      systemd:
+        name: api-filmes
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Aguardar API iniciar (porta 8080)
+      wait_for:
+        port: 8080
+        delay: 3
+        timeout: 30
+
+    - name: Testar rota GET da API
+      uri:
+        url: http://localhost:8080/api/filmes
+        method: GET
+        return_content: yes
+      register: api_response
+
+    - name: Exibir resposta da API
+      debug:
+        msg: "API respondeu com sucesso: {{ api_response.content }}"
+
+  handlers:
+    - name: Reiniciar API de Filmes
+      systemd:
+        name: api-filmes
+        state: restarted
+        daemon_reload: yes
