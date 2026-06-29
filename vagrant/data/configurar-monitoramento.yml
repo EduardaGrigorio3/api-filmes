@@ -1,0 +1,165 @@
+---
+- name: Configurar monitoramento com Netdata
+  hosts: all
+  become: true
+
+  vars:
+    netdata_alert_email: "seuemail@exemplo.com"
+    smtp_server: "smtp.gmail.com"
+    smtp_port: "587"
+    smtp_user: "seuemail@gmail.com"
+    smtp_password: "sua_senha_de_app"
+
+  tasks:
+    # -------------------------------------------------------
+    # 1. Instalar dependências do sistema
+    # -------------------------------------------------------
+    - name: Atualizar cache do apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar dependências necessárias
+      apt:
+        name:
+          - curl
+          - wget
+          - stress-ng
+          - msmtp
+          - msmtp-mta
+          - mailutils
+        state: present
+
+    # -------------------------------------------------------
+    # 2. Instalar o Netdata
+    # -------------------------------------------------------
+    - name: Verificar se o Netdata já está instalado
+      stat:
+        path: /usr/sbin/netdata
+      register: netdata_bin
+
+    - name: Baixar script de instalação do Netdata
+      get_url:
+        url: https://get.netdata.cloud/kickstart.sh
+        dest: /tmp/netdata-kickstart.sh
+        mode: '0755'
+      when: not netdata_bin.stat.exists
+
+    - name: Instalar Netdata via script oficial
+      shell: bash /tmp/netdata-kickstart.sh --stable-channel --disable-telemetry --dont-wait
+      args:
+        executable: /bin/bash
+      when: not netdata_bin.stat.exists
+
+    - name: Garantir que o serviço Netdata está habilitado e iniciado
+      service:
+        name: netdata
+        state: started
+        enabled: yes
+
+    # -------------------------------------------------------
+    # 3. Configurar envio de e-mail (msmtp)
+    # -------------------------------------------------------
+    - name: Configurar msmtp para envio de e-mails
+      copy:
+        dest: /etc/msmtprc
+        content: |
+          # Configuração global do msmtp
+          defaults
+          auth           on
+          tls            on
+          tls_trust_file /etc/ssl/certs/ca-certificates.crt
+          syslog         on
+
+          # Conta padrão (Gmail)
+          account        gmail
+          host           {{ smtp_server }}
+          port           {{ smtp_port }}
+          from           {{ smtp_user }}
+          user           {{ smtp_user }}
+          password       {{ smtp_password }}
+
+          account default : gmail
+        mode: '0644'
+        owner: root
+        group: root
+
+    # -------------------------------------------------------
+    # 4. Configurar alertas do Netdata para CPU > 80%
+    # -------------------------------------------------------
+    - name: Criar diretório de alarmes do Netdata
+      file:
+        path: /etc/netdata/health.d
+        state: directory
+        owner: netdata
+        group: netdata
+        mode: '0755'
+
+    - name: Configurar alerta de CPU acima de 80%
+      copy:
+        dest: /etc/netdata/health.d/cpu_usage.conf
+        content: |
+          alarm: cpu_usage_high
+            on: system.cpu
+            lookup: average -1m percentage foreach user,system,softirq,irq
+            units: %
+            every: 10s
+            warn: $this > 80
+            crit: $this > 95
+            delay: up 0 down 5m multiplier 1.5 max 1h
+            info: Uso médio de CPU nos últimos 1 minuto
+            to: sysadmin
+        owner: netdata
+        group: netdata
+        mode: '0644'
+      notify: Reiniciar Netdata
+
+    - name: Configurar destinatário de e-mail para alarmes do Netdata
+      copy:
+        dest: /etc/netdata/health_alarm_notify.conf
+        content: |
+          # Configuração de notificação por e-mail do Netdata
+
+          # Habilitar notificações por e-mail
+          SEND_EMAIL="YES"
+
+          # Programa para envio de e-mail
+          sendmail="/usr/bin/msmtp"
+
+          # Endereço de e-mail padrão para o remetente
+          DEFAULT_RECIPIENT_EMAIL="{{ netdata_alert_email }}"
+
+          # Mapear a role 'sysadmin' para o e-mail de destino
+          role_recipients_email[sysadmin]="{{ netdata_alert_email }}"
+
+          # Desabilitar outros métodos de notificação
+          SEND_SLACK="NO"
+          SEND_DISCORD="NO"
+          SEND_TELEGRAM="NO"
+          SEND_PUSHOVER="NO"
+          SEND_PUSHBULLET="NO"
+          SEND_TWILIO="NO"
+          SEND_KAVENEGAR="NO"
+          SEND_PD="NO"
+          SEND_FLOCK="NO"
+          SEND_PROWL="NO"
+          SEND_MESSAGEBIRD="NO"
+          SEND_CUSTOM="NO"
+        owner: netdata
+        group: netdata
+        mode: '0644'
+      notify: Reiniciar Netdata
+
+    # -------------------------------------------------------
+    # 5. Reiniciar o Netdata para aplicar configurações
+    # -------------------------------------------------------
+    - name: Forçar reinício do Netdata
+      service:
+        name: netdata
+        state: restarted
+
+  handlers:
+    - name: Reiniciar Netdata
+      service:
+        name: netdata
+        state: restarted
