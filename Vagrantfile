@@ -37,7 +37,6 @@ Vagrant.configure("2") do |config|
 
     # Instalar Ansible e configurar acesso SSH à VM2
     vm1.vm.provision "shell", inline: <<-SHELL
-      # Instalar Ansible
       apt-get update
       apt-get install -y software-properties-common
       add-apt-repository --yes --update ppa:ansible/ansible
